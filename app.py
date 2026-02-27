@@ -1,39 +1,52 @@
-# Data Handling
-import pandas as pd
-import numpy as np
-
-# Visualization
-import matplotlib.pyplot as plt
-import seaborn as sns
-from wordcloud import WordCloud
-
-# Text Processing
+import streamlit as st
+import pickle
 import re
 import string
 import nltk
-
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from nltk.sentiment import SentimentIntensityAnalyzer
 from nltk.tokenize import word_tokenize
 
-# Machine Learning
-from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import (accuracy_score,classification_report,confusion_matrix,f1_score)
-
-# Model Saving
-import pickle
-
-# Download NLTK resources
+# Download required NLTK resources
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
-nltk.download('vader_lexicon')
 
-# Warnings
-import warnings
-warnings.filterwarnings("ignore")
+# Text Cleaning
+stop_words = set(stopwords.words('english'))
+lemmatizer = WordNetLemmatizer()
+
+def clean_text(text):
+    text = str(text).lower()
+    text = re.sub(r"n't", " not", text)
+    text = re.sub(r"'re", " are", text)
+    text = text.translate(str.maketrans('', '', string.punctuation))
+    text = re.sub(r'\d+', '', text)
+    tokens = word_tokenize(text)
+    tokens = [lemmatizer.lemmatize(word) for word in tokens if word not in stop_words]
+    return " ".join(tokens)
+
+# Load trained pipeline
+@st.cache_resource
+def load_pipeline():
+    with open("patient_condition_pipeline.pkl", "rb") as f:
+        pipeline = pickle.load(f)
+    return pipeline
+
+pipeline = load_pipeline()
+
+# UI
+st.title("🩺 Patient Condition Classification")
+st.write("Enter a patient's drug review to classify the condition.")
+
+user_review = st.text_area("Patient Review")
+
+if st.button("Predict Condition"):
+    if user_review.strip() == "":
+        st.warning("Please enter a review.")
+    else:
+        try:
+            prediction = pipeline.predict([user_review])
+            st.success(f"Predicted Condition: {prediction[0]}")
+        except Exception as e:
+            st.error(f"Error: {e}")
